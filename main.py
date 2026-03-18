@@ -1,98 +1,54 @@
 from flask import Flask, render_template_string, request, jsonify
-import requests
+import os
+from openai import OpenAI
 
 app = Flask(__name__)
 
+# Инициализация клиента OpenAI (ключ возьмем из настроек Render)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ModFinder | Minecraft</title>
+    <title>Moduino AI | Powered by OpenAI</title>
     <style>
-        :root { --red: #ff0000; --bg: #080808; --card: #121212; }
-        body { 
-            background: var(--bg); color: white; font-family: sans-serif;
-            display: flex; flex-direction: column; align-items: center; padding: 20px;
-        }
-        .container {
-            width: 100%; max-width: 600px; background: var(--card); border: 2px solid var(--red);
-            border-radius: 20px; padding: 30px; text-align: center; box-shadow: 0 0 20px rgba(255,0,0,0.2);
-        }
-        h1 { color: var(--red); letter-spacing: 5px; text-transform: uppercase; }
-        .form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        input, select {
-            padding: 12px; background: #000; border: 1px solid #333; color: white; border-radius: 10px; flex: 1; min-width: 150px;
-        }
-        .btn {
-            background: var(--red); color: white; border: none; padding: 15px;
-            border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%;
-        }
-        #results { margin-top: 20px; width: 100%; max-width: 600px; }
-        .mod-card {
-            background: #181818; border: 1px solid #222; border-radius: 15px; padding: 15px;
-            display: flex; align-items: center; gap: 15px; margin-bottom: 10px;
-        }
-        .mod-card img { width: 50px; height: 50px; border-radius: 8px; }
-        .mod-info { flex-grow: 1; text-align: left; }
-        .mod-name { font-weight: bold; color: var(--red); }
-        .mod-desc { font-size: 12px; color: #888; }
-        .get-btn { background: #333; color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; font-size: 11px; }
+        :root { --red: #ff0000; --bg: #050505; }
+        body { background: var(--bg); color: white; font-family: 'Courier New', monospace; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 800px; background: #111; border: 2px solid var(--red); border-radius: 20px; padding: 30px; box-shadow: 0 0 30px rgba(255,0,0,0.2); }
+        h1 { color: var(--red); text-align: center; letter-spacing: 5px; }
+        textarea { width: 100%; height: 100px; background: #000; border: 1px solid #333; color: white; padding: 15px; border-radius: 10px; font-size: 16px; margin-bottom: 20px; resize: none; }
+        .btn { width: 100%; background: var(--red); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; }
+        pre { background: #000; padding: 20px; border-radius: 10px; border: 1px solid #222; color: #0f0; overflow-x: auto; margin-top: 20px; white-space: pre-wrap; min-height: 200px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>ModFinder</h1>
-        <div class="form">
-            <input type="text" id="q" placeholder="Search mods (e.g. guns)">
-            <select id="v">
-                <option value="">All Versions</option>
-                <option value="1.20.1">1.20.1</option>
-                <option value="1.19.2">1.19.2</option>
-                <option value="1.18.2">1.18.2</option>
-                <option value="1.16.5">1.16.5</option>
-                <option value="1.12.2">1.12.2</option>
-            </select>
-        </div>
-        <button class="btn" onclick="doSearch()">SEARCH</button>
+        <h1>MODUINO AI</h1>
+        <p style="text-align:center; color:#888;">Опиши любые компоненты (хоть миллиард), и ИИ напишет код</p>
+        <textarea id="prompt" placeholder="Например: Arduino Nano, датчик DHT11 на 2 пине, LCD 16x2 и сервопривод на 9 пине..."></textarea>
+        <button class="btn" onclick="generateCode()">СГЕНЕРИРОВАТЬ КОД</button>
+        <pre id="output">// Твой код появится здесь...</pre>
     </div>
-    <div id="results"></div>
 
     <script>
-        async function doSearch() {
-            const q = document.getElementById('q').value;
-            const v = document.getElementById('v').value;
-            const res = document.getElementById('results');
-            if(!q) return;
+        async function generateCode() {
+            const prompt = document.getElementById('prompt').value;
+            const output = document.getElementById('output');
+            if(!prompt) return;
             
-            res.innerHTML = '<p>Searching...</p>';
+            output.innerText = "Нейросеть думает... Подожди немного...";
             
             try {
-                // Прямой вызов нашего API
-                const r = await fetch(`/search_api?q=${encodeURIComponent(q)}&v=${v}`);
-                const data = await r.json();
-                
-                if (data.length === 0) {
-                    res.innerHTML = '<p>No mods found or API error.</p>';
-                    return;
-                }
-
-                res.innerHTML = '';
-                data.forEach(m => {
-                    res.innerHTML += `
-                        <div class="mod-card">
-                            <img src="${m.logo}" onerror="this.src='https://via.placeholder.com/50'">
-                            <div class="mod-info">
-                                <div class="mod-name">${m.name}</div>
-                                <div class="mod-desc">${m.summary}</div>
-                            </div>
-                            <a href="${m.url}" target="_blank" class="get-btn">VIEW</a>
-                        </div>
-                    `;
+                const response = await fetch('/ai_gen', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({prompt: prompt})
                 });
+                const data = await response.json();
+                output.innerText = data.code;
             } catch(e) {
-                res.innerHTML = '<p>Error connecting to server.</p>';
+                output.innerText = "Ошибка! Проверь API ключ в настройках Render.";
             }
         }
     </script>
@@ -104,39 +60,22 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/search_api')
-def search_api():
-    query = request.args.get('q', '')
-    version = request.args.get('v', '')
+@app.route('/ai_gen', methods=['POST'])
+def ai_gen():
+    user_prompt = request.json.get('prompt')
     
-    # Используем альтернативный эндпоинт CurseForge
-    search_url = f"https://www.curseforge.com/api/v1/mods/search?gameId=432&searchFilter={query}&gameVersion={version}&index=0&pageSize=10&sortField=1"
-    
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json'
-    }
-    
-    try:
-        response = requests.get(search_url, headers=headers, timeout=10)
-        print(f"Status: {response.status_code}") # Это будет видно в логах Render
-        
-        if response.status_code != 200:
-            return jsonify([])
-            
-        data = response.json()
-        mods = []
-        for item in data.get('data', []):
-            mods.append({
-                "name": item.get('name'),
-                "summary": item.get('summary', '')[:80] + '...',
-                "logo": item.get('logo', {}).get('thumbnailUrl', ''),
-                "url": f"https://www.curseforge.com/minecraft/mc-mods/{item.get('slug')}"
-            })
-        return jsonify(mods)
+    try {
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo", # Или "gpt-4" если есть доступ
+            messages=[
+                {"role": "system", "content": "Ты эксперт по Arduino. Пиши только готовый C++ код с комментариями на русском. Не пиши лишних слов, только код."},
+                {"role": "user", "content": f"Напиши код Arduino для следующей задачи: {user_prompt}"}
+            ]
+        )
+        ai_code = response.choices[0].message.content
+        return jsonify({"code": ai_code})
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify([])
+        return jsonify({"code": f"Ошибка API: {str(e)}"})
 
 if __name__ == '__main__':
     app.run()
