@@ -9,87 +9,91 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ModFinder | Minecraft Search</title>
+    <title>ModFinder | Minecraft</title>
     <style>
         :root { --red: #ff0000; --bg: #080808; --card: #121212; }
         body { 
-            background: var(--bg); color: white; font-family: 'Inter', sans-serif;
-            display: flex; flex-direction: column; align-items: center; padding: 40px; margin: 0;
+            background: var(--bg); color: white; font-family: sans-serif;
+            display: flex; flex-direction: column; align-items: center; padding: 20px;
         }
         .container {
             width: 100%; max-width: 600px; background: var(--card); border: 2px solid var(--red);
-            border-radius: 25px; padding: 30px; box-shadow: 0 0 30px rgba(255,0,0,0.2); text-align: center;
+            border-radius: 20px; padding: 30px; text-align: center; box-shadow: 0 0 20px rgba(255,0,0,0.2);
         }
-        h1 { color: var(--red); letter-spacing: 8px; font-size: 2.5em; margin-bottom: 20px; text-transform: uppercase; }
-        .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        h1 { color: var(--red); letter-spacing: 5px; text-transform: uppercase; }
+        .form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         input, select {
-            padding: 12px; background: #000; border: 1px solid #333; color: white; border-radius: 10px; outline: none;
+            padding: 12px; background: #000; border: 1px solid #333; color: white; border-radius: 10px; flex: 1; min-width: 150px;
         }
-        input { flex-grow: 2; }
         .btn {
             background: var(--red); color: white; border: none; padding: 15px;
-            border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; text-transform: uppercase;
+            border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%;
         }
-        .btn:hover { background: #cc0000; transform: scale(1.01); }
-        #results { margin-top: 30px; width: 100%; max-width: 600px; display: grid; gap: 15px; }
+        #results { margin-top: 20px; width: 100%; max-width: 600px; }
         .mod-card {
             background: #181818; border: 1px solid #222; border-radius: 15px; padding: 15px;
-            display: flex; align-items: center; gap: 15px; animation: fadeIn 0.3s ease;
+            display: flex; align-items: center; gap: 15px; margin-bottom: 10px;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .mod-card img { width: 60px; height: 60px; border-radius: 10px; }
+        .mod-card img { width: 50px; height: 50px; border-radius: 8px; }
         .mod-info { flex-grow: 1; text-align: left; }
-        .mod-name { font-weight: bold; color: var(--red); display: block; }
-        .mod-desc { font-size: 13px; color: #888; margin-top: 4px; }
-        .get-btn {
-            background: #333; color: white; text-decoration: none; padding: 8px 12px;
-            border-radius: 8px; font-size: 12px; font-weight: bold;
-        }
+        .mod-name { font-weight: bold; color: var(--red); }
+        .mod-desc { font-size: 12px; color: #888; }
+        .get-btn { background: #333; color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; font-size: 11px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>ModFinder</h1>
-        <div class="search-bar">
-            <input type="text" id="q" placeholder="What mod are you looking for?">
+        <div class="form">
+            <input type="text" id="q" placeholder="Search mods (e.g. guns)">
             <select id="v">
-                <option value="">All Ver.</option>
+                <option value="">All Versions</option>
                 <option value="1.20.1">1.20.1</option>
                 <option value="1.19.2">1.19.2</option>
                 <option value="1.18.2">1.18.2</option>
                 <option value="1.16.5">1.16.5</option>
                 <option value="1.12.2">1.12.2</option>
-                <option value="1.7.10">1.7.10</option>
             </select>
         </div>
-        <button class="btn" onclick="runSearch()">Search Now</button>
+        <button class="btn" onclick="doSearch()">SEARCH</button>
     </div>
     <div id="results"></div>
 
     <script>
-        async function runSearch() {
+        async function doSearch() {
             const q = document.getElementById('q').value;
             const v = document.getElementById('v').value;
             const res = document.getElementById('results');
             if(!q) return;
+            
             res.innerHTML = '<p>Searching...</p>';
+            
             try {
-                const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&v=${v}`);
-                const mods = await r.json();
+                // Прямой вызов нашего API
+                const r = await fetch(`/search_api?q=${encodeURIComponent(q)}&v=${v}`);
+                const data = await r.json();
+                
+                if (data.length === 0) {
+                    res.innerHTML = '<p>No mods found or API error.</p>';
+                    return;
+                }
+
                 res.innerHTML = '';
-                mods.forEach(m => {
+                data.forEach(m => {
                     res.innerHTML += `
                         <div class="mod-card">
-                            <img src="${m.logo || 'https://via.placeholder.com/60'}" alt="icon">
+                            <img src="${m.logo}" onerror="this.src='https://via.placeholder.com/50'">
                             <div class="mod-info">
-                                <span class="mod-name">${m.name}</span>
-                                <span class="mod-desc">${m.summary}</span>
+                                <div class="mod-name">${m.name}</div>
+                                <div class="mod-desc">${m.summary}</div>
                             </div>
                             <a href="${m.url}" target="_blank" class="get-btn">VIEW</a>
                         </div>
                     `;
                 });
-            } catch(e) { res.innerHTML = '<p>Error loading mods.</p>'; }
+            } catch(e) {
+                res.innerHTML = '<p>Error connecting to server.</p>';
+            }
         }
     </script>
 </body>
@@ -100,24 +104,38 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/api/search')
-def search():
+@app.route('/search_api')
+def search_api():
     query = request.args.get('q', '')
-    ver = request.args.get('v', '')
-    url = f"https://www.curseforge.com/api/v1/mods/search?gameId=432&searchFilter={query}&gameVersion={ver}&index=0&pageSize=10&sortField=1"
+    version = request.args.get('v', '')
+    
+    # Используем альтернативный эндпоинт CurseForge
+    search_url = f"https://www.curseforge.com/api/v1/mods/search?gameId=432&searchFilter={query}&gameVersion={version}&index=0&pageSize=10&sortField=1"
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json'
+    }
+    
     try:
-        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
-        data = r.json()
+        response = requests.get(search_url, headers=headers, timeout=10)
+        print(f"Status: {response.status_code}") # Это будет видно в логах Render
+        
+        if response.status_code != 200:
+            return jsonify([])
+            
+        data = response.json()
         mods = []
-        for m in data.get('data', []):
+        for item in data.get('data', []):
             mods.append({
-                "name": m.get('name'),
-                "summary": m.get('summary'),
-                "logo": m.get('logo', {}).get('thumbnailUrl'),
-                "url": f"https://www.curseforge.com/minecraft/mc-mods/{m.get('slug')}"
+                "name": item.get('name'),
+                "summary": item.get('summary', '')[:80] + '...',
+                "logo": item.get('logo', {}).get('thumbnailUrl', ''),
+                "url": f"https://www.curseforge.com/minecraft/mc-mods/{item.get('slug')}"
             })
         return jsonify(mods)
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         return jsonify([])
 
 if __name__ == '__main__':
